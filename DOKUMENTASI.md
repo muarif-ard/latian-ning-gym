@@ -242,6 +242,21 @@ Inilah alasan README menyebut "memindahkan data dari versi Claude" lewat ekspor/
 ## 9. Tampilan & tema
 
 - Warna didefinisikan sebagai CSS variable di `:root`. Ada dua lapis: tema awal (baris ~20–194) lalu **override "Tampilan segar ala aplikasi olahraga"** (baris ~196 ke bawah) yang menjadi tampilan aktif: aksen oranye `#FC5200`, abu gelap `#2D3142`, font Figtree.
+- **Warna pembeda konten**: setiap kotak diberi kelas `kc` + satu kelas warna, yang menampilkan garis warna di sisi kiri, titik warna di judul, dan ikon berwarna sama. Artinya konsisten di semua halaman dan dijelaskan di kotak **Arti warna** pada halaman Program:
+
+  | Kelas | Warna | Isi |
+  |---|---|---|
+  | `k-or` | Oranye | Latihan (gerakan, kardio penutup, volume, per gerakan, riwayat) |
+  | `k-bl` | Biru | Berat badan dan air minum |
+  | `k-gr` | Hijau | Makan dan gizi |
+  | `k-rd` | Merah | Larangan dan keselamatan |
+  | `k-pu` | Ungu | Jadwal, kalender, pengingat, program |
+  | `k-ye` | Kuning | Rekor dan pencapaian |
+  | `k-te` | Toska | Pemanasan, pendinginan, kata coach, panduan |
+  | `k-pk` | Merah muda | Profil dan foto |
+  | `k-gy` | Abu | Data dan pengaturan |
+
+  Token warnanya (`--kc-*`) punya versi terang dan gelap. Kotak baru cukup diberi `class="card kc k-xx"`.
 - Mode gelap otomatis mengikuti sistem (`prefers-color-scheme`), atau dipaksa dengan atribut `data-theme="dark"|"light"` di `<html>`.
 - Mendukung safe-area iPhone (notch), `prefers-reduced-motion`, label `aria-*` pada tombol dan input.
 
@@ -319,6 +334,11 @@ Uji manual singkat setelah mengubah kode: buka aplikasi, isi profil, catat satu 
 ---
 
 ## 14. Riwayat perubahan
+
+### v5 (8 November 2026)
+- Warna pembeda di setiap kotak konten (garis kiri, titik judul, ikon) menurut jenis isi, berlaku di mode terang dan gelap.
+- Kotak **Arti warna** di halaman Program.
+- `VERSION` service worker → `v5`.
 
 ### v4 (8 November 2026)
 - Kalender latihan bulanan dengan tanda hari terlewat, ringkasan sesi, dan kepatuhan.

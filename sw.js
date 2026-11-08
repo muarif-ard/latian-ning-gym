@@ -1,6 +1,6 @@
 // Service worker Latian Ning Gym: membuat aplikasi tetap terbuka saat offline.
 // Naikkan angka VERSION setiap kali index.html diubah agar HP mengambil versi terbaru.
-const VERSION = "v4";
+const VERSION = "v5";
 const CACHE = "latian-gym-" + VERSION;
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
 
