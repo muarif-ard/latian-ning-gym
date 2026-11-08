@@ -2,6 +2,11 @@
 
 Semua perubahan penting pada Latian Ning Gym. Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/); nomor versi utama sama dengan `VERSION` di `sw.js`.
 
+## [7.0.0] — 8 November 2026
+
+### Diperbaiki
+- Manifest kini punya `id` tetap (`/latian-ning-gym/`) sesuai rekomendasi Chrome, agar Android mengenali aplikasi dengan identitas yang sama saat memasang dan memperbarui.
+
 ## [6.0.0] — 8 November 2026
 
 ### Diubah
