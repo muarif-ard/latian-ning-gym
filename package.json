@@ -1,0 +1,24 @@
+{
+  "name": "latian-ning-gym",
+  "version": "6.0.0",
+  "description": "PWA program gym 3 bulan: latihan, makan, progres berat badan, dan pengingat.",
+  "private": true,
+  "license": "MIT",
+  "author": "Muarif Ardiansyah",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muarif-ard/latian-ning-gym.git"
+  },
+  "homepage": "https://muarif-ard.github.io/latian-ning-gym/",
+  "scripts": {
+    "start": "npx --yes serve@14.2.4 -l 8000 .",
+    "test": "node tests/run.js",
+    "screenshots": "node tests/screenshots.js"
+  },
+  "devDependencies": {
+    "puppeteer-core": "23.11.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

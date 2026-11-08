@@ -1,8 +1,15 @@
 // Service worker Latian Ning Gym: membuat aplikasi tetap terbuka saat offline.
 // Naikkan angka VERSION setiap kali index.html diubah agar HP mengambil versi terbaru.
-const VERSION = "v5";
+const VERSION = "v6";
 const CACHE = "latian-gym-" + VERSION;
-const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
+// Semua file yang dibutuhkan agar aplikasi bisa dibuka offline. Tambahkan di sini jika membuat file baru.
+const SHELL = [
+  "./", "index.html", "manifest.webmanifest", "css/style.css",
+  "js/util.js", "js/icons.js", "js/data.js", "js/store.js", "js/logic.js", "js/ui.js",
+  "js/views/latihan.js", "js/views/makan.js", "js/views/progres.js", "js/views/sesi.js", "js/views/program.js",
+  "js/app.js",
+  "icons/icon-192.png", "icons/icon-512.png", "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"
+];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

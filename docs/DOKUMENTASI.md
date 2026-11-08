@@ -1,6 +1,6 @@
 # Dokumentasi Teknis — Latian Ning Gym
 
-Dokumen ini menjelaskan cara kerja aplikasi untuk siapa pun yang ingin merawat atau mengubah kodenya. Panduan upload ke GitHub Pages dan pemasangan di HP ada di [README.md](README.md).
+Dokumen ini menjelaskan cara kerja aplikasi untuk siapa pun yang ingin merawat atau mengubah kodenya. Panduan pemasangan ada di [README.md](../README.md), riwayat versi di [CHANGELOG.md](../CHANGELOG.md).
 
 ---
 
@@ -10,7 +10,7 @@ Dokumen ini menjelaskan cara kerja aplikasi untuk siapa pun yang ingin merawat a
 
 | Aspek | Keterangan |
 |---|---|
-| Jenis | Single-page app, satu file HTML, tanpa framework dan tanpa build step |
+| Jenis | Single-page app tanpa framework dan **tanpa build step**: file di repo adalah file yang dijalankan browser |
 | Bahasa kode | HTML + CSS + JavaScript murni (vanilla) |
 | Penyimpanan | `localStorage` (data utama) dan `IndexedDB` (foto progres) |
 | Offline | Ya, lewat service worker (`sw.js`) |
@@ -24,12 +24,32 @@ Dokumen ini menjelaskan cara kerja aplikasi untuk siapa pun yang ingin merawat a
 
 ```
 latian-ning-gym/
-├── index.html             Seluruh aplikasi: tampilan (CSS) + logika (JS) + data program
-├── sw.js                  Service worker: cache untuk mode offline
-├── manifest.webmanifest   Metadata PWA (nama, warna, ikon, mode standalone)
-├── icons/                 Ikon 192, 512, maskable 512, dan apple-touch-icon
-├── README.md              Panduan deploy dan pemasangan untuk pengguna
-└── DOKUMENTASI.md         Dokumen ini
+├── index.html               Kerangka halaman; memuat css/ dan js/
+├── manifest.webmanifest     Metadata PWA (nama, warna, ikon, mode standalone)
+├── sw.js                    Service worker: cache untuk mode offline
+├── css/
+│   └── style.css            Seluruh gaya tampilan dan warna pembeda
+├── js/                      Dimuat berurutan seperti di bawah (lihat 5.1)
+│   ├── util.js              $, esc, fmt, dk, dur, yt
+│   ├── icons.js             Ikon SVG (I, svg) dan ilustrasi (fig, ill)
+│   ├── data.js              Isi program: W, ORDER, PH, MENU, RULES, TIPS
+│   ├── store.js             Data: DEF, clean, merge, persist, sinkron akun, foto, ekspor/impor
+│   ├── logic.js             Perhitungan: fase, latihan berikutnya, rekor, volume, berat, kalori
+│   ├── ui.js                Status tampilan, toast, dialog, render(), timer, .ics, gambar bagikan
+│   ├── views/
+│   │   ├── latihan.js       Halaman Latihan
+│   │   ├── makan.js         Halaman Makan
+│   │   ├── progres.js       Halaman Progres, kalender, grafik per gerakan, riwayat
+│   │   ├── sesi.js          Detail sesi dan editor sesi
+│   │   └── program.js       Halaman Program
+│   └── app.js               Event handler dan start aplikasi (dimuat terakhir)
+├── icons/                   Ikon 192, 512, maskable 512, apple-touch-icon
+├── tests/                   Uji Chrome headless (npm test)
+├── docs/DOKUMENTASI.md      Dokumen ini
+├── .github/workflows/       Uji otomatis setiap push
+├── README.md, CHANGELOG.md, LICENSE
+├── package.json             Skrip npm dan dependensi uji (tidak dipakai aplikasi)
+└── .gitignore, .gitattributes, .editorconfig
 ```
 
 ---
@@ -131,9 +151,20 @@ Format satu gerakan:
 
 ---
 
-## 5. Arsitektur kode `index.html`
+## 5. Arsitektur kode
 
-### 5.1 Alur render
+### 5.1 Cara file JavaScript dimuat
+File di `js/` adalah **script biasa, bukan ES module**. Semuanya dimuat berurutan oleh `index.html` dan berbagi satu lingkup global, sehingga fungsi dan variabel di satu file bisa langsung dipakai file lain tanpa `import`. Pilihan ini disengaja:
+- tetap tanpa build dan tanpa bundler;
+- `index.html` masih bisa dibuka langsung dari file (`file://`), yang tidak mungkin dengan ES module;
+- uji bisa membaca state aplikasi (`S`, `view`, dst.) langsung.
+
+Aturannya:
+1. **Urutan di `index.html` penting.** Kode yang dijalankan saat file dimuat (bukan di dalam fungsi) hanya boleh memakai sesuatu dari file sebelumnya. Contoh: `store.js` memanggil `clean()` saat dimuat, yang butuh `W` dan `RULES` dari `data.js`. Pemanggilan di dalam fungsi bebas urutan, karena baru berjalan setelah semua file dimuat.
+2. **Nama harus unik di semua file.** Dua `const` atau `let` dengan nama sama di file berbeda akan error.
+3. **File baru** harus ditambahkan di dua tempat: tag `<script>` di `index.html` dan daftar `SHELL` di `sw.js`. Uji `tests/offline.test.js` gagal jika salah satunya terlewat.
+
+### 5.2 Alur render
 Aplikasi memakai pola **state → string HTML → `innerHTML`**:
 
 1. Semua data ada di satu objek global `S`.
@@ -141,30 +172,29 @@ Aplikasi memakai pola **state → string HTML → `innerHTML`**:
 3. Interaksi ditangkap dengan **event delegation** pada `#view` (`click`, `change`, `input`) berdasarkan atribut `data-*` (mis. `data-k`, `data-rule`, `data-air`).
 4. Setelah state diubah → `persist()` → `render()` lagi.
 
-### 5.2 Peta fungsi penting
+### 5.3 Peta fungsi penting
 
-| Kelompok | Fungsi | Kegunaan |
-|---|---|---|
-| Utilitas | `$`, `esc`, `fmt`, `dk`, `dur`, `weekStart` | Ambil elemen, escape HTML, format angka id-ID, kunci tanggal `YYYY-MM-DD`, format durasi, awal minggu (Senin) |
-| Program | `prog()`, `phIdx()`, `nextW()` | Minggu & fase saat ini, latihan berikutnya |
-| Latihan | `newDraft`, `lastFor`, `best`, `isPR`, `vol` | Draft sesi baru (beban diisi dari sesi lalu), catatan terakhir, rekor, cek PR, volume (kg × rep) |
-| Tubuh | `curW`, `bmi`, `protein`, `weekStreak` | Berat terkini, BMI, target protein, minggu beruntun ≥ 4 sesi |
-| Data | `DEF`, `clean`, `merge` | Data awal; validasi + migrasi semua data masuk (localStorage, akun, file impor); penggabungan impor |
-| Kalori | `kcal` | Target kalori dari profil (null jika profil belum lengkap) |
-| Simpan | `persist`, `pushRemote` | Tulis ke localStorage; sinkron ke akun jika berjalan di Claude |
-| Cadangan | `exportData`, `importData` | Ekspor JSON + foto; impor dengan pilihan gabung/ganti |
-| Dialog | `ask`, `yes` | Dialog konfirmasi sendiri (pengganti `confirm()` yang diblokir di sebagian WebView/iframe), mendukung Escape dan fokus keyboard |
-| Foto | `idb`, `loadPhotos`, `addPhoto`, `delPhoto`, `putPhotos` | CRUD foto di IndexedDB `latian-gym-foto` |
-| Grafik | `weightChart`, `prepostHTML` | Grafik SVG buatan sendiri (tanpa library) |
-| Kalender | `calHTML` (state `calOff`) | Kalender bulanan, ringkasan, dan kepatuhan |
-| Per gerakan | `exMetric`, `exProgHTML` (state `exSel`) | Metrik per sesi dan grafik perkembangan gerakan |
-| Editor sesi | `edNew`, `edOpen`, `edSets`, `editHTML`, `edSave` | Catat latihan lampau dan edit sesi (`view.type === "edit"`) |
-| Konsistensi | `sortS`, `recalcPRs`, `phAt`, `locDT` | Urutkan sesi terbaru dulu, hitung ulang rekor, fase pada tanggal tertentu, format `datetime-local` |
-| Timer | `startTimer`, `stopTimer`, `showT` | Timer istirahat dengan cincin progres SVG |
-| Ekspor | `saveICS`, `shareImage` | File kalender `.ics`, gambar hasil latihan 1080×1350 PNG via canvas |
-| Ilustrasi | `I`, `svg()`, `FG`, `fig()`, `ill()` | Kumpulan ikon & ilustrasi SVG inline |
+| Kelompok | Fungsi | File | Kegunaan |
+|---|---|---|---|
+| Utilitas | `$`, `esc`, `fmt`, `dk`, `dur`, `yt` | `util.js` | Ambil elemen, escape HTML, format angka id-ID, kunci tanggal `YYYY-MM-DD`, format durasi, link pencarian YouTube |
+| Ilustrasi | `I`, `svg()`, `FG`, `fig()`, `ill()` | `icons.js` | Ikon dan ilustrasi SVG inline |
+| Data | `DEF`, `clean`, `merge` | `store.js` | Data awal; validasi + migrasi semua data masuk; penggabungan impor |
+| Simpan | `persist`, `pushRemote` | `store.js` | Tulis ke localStorage; sinkron ke akun jika berjalan di Claude |
+| Foto | `idb`, `loadPhotos`, `addPhoto`, `delPhoto`, `putPhotos` | `store.js` | CRUD foto di IndexedDB `latian-gym-foto` |
+| Cadangan | `exportData`, `importData` | `store.js` | Ekspor JSON + foto; impor dengan pilihan gabung/ganti |
+| Program | `weekStart`, `prog()`, `phIdx()`, `nextW()`, `phAt()` | `logic.js` | Awal minggu (Senin), minggu & fase, latihan berikutnya, fase pada tanggal tertentu |
+| Latihan | `newDraft`, `lastFor`, `best`, `isPR`, `vol` | `logic.js` | Draft sesi baru, catatan terakhir, rekor, cek PR, volume (kg × rep) |
+| Tubuh | `curW`, `bmi`, `protein`, `kcal`, `weekStreak` | `logic.js` | Berat terkini, BMI, target protein & kalori, minggu beruntun ≥ 4 sesi |
+| Konsistensi | `sortS`, `recalcPRs`, `locDT` | `logic.js` | Urutkan sesi terbaru dulu, hitung ulang rekor, format `datetime-local` |
+| Tampilan | `render`, `renderTabs`, `remBanner`, `coachTip`, `heroArt` | `ui.js` | Menggambar ulang halaman sesuai `tab`/`view` |
+| Dialog | `toast`, `ask`, `yes` | `ui.js` | Notifikasi dan dialog konfirmasi sendiri (pengganti `confirm()` yang diblokir di sebagian WebView/iframe) |
+| Timer | `startTimer`, `stopTimer`, `showT` | `ui.js` | Timer istirahat dengan cincin progres SVG |
+| Ekspor | `saveICS`, `shareImage` | `ui.js` | File kalender `.ics`, gambar hasil latihan 1080×1350 PNG |
+| Halaman | `todayHTML`, `foodHTML`, `progHTML`, `planHTML` | `views/*.js` | Isi tiap tab |
+| Grafik | `weightChart`, `prepostHTML`, `calHTML`, `exProgHTML` | `views/progres.js` | Grafik SVG buatan sendiri, kalender, grafik per gerakan |
+| Sesi | `resultHTML`, `edNew`, `edOpen`, `editHTML`, `edSave` | `views/sesi.js` | Detail sesi, catat latihan lampau, edit sesi |
 
-### 5.3 Logika khusus yang perlu diketahui
+### 5.4 Logika khusus yang perlu diketahui
 - **Rekor pribadi**: untuk gerakan berbeban = beban tertinggi; untuk `pullup` dan gerakan tanpa beban/detik = repetisi/detik tertinggi (pull-up pakai beban *bantuan*, jadi beban lebih kecil = lebih berat). PR baru dihitung hanya jika gerakan itu sudah pernah tercatat.
 - **Volume** hanya menghitung gerakan berbeban bersatuan repetisi, tanpa `pullup`.
 - **Durasi sesi** = sejak set/pemanasan pertama dicentang + 90 detik, maksimal 4 jam.
@@ -231,17 +261,17 @@ Inilah alasan README menyebut "memindahkan data dari versi Claude" lewat ekspor/
 
 ## 8. Service worker (`sw.js`)
 
-- Cache bernama `latian-gym-<VERSION>`; saat install menyimpan `index.html`, manifest, dan ikon.
+- Cache bernama `latian-gym-<VERSION>`; saat install menyimpan semua file di daftar `SHELL` (HTML, CSS, semua JS, manifest, ikon).
 - **Halaman (navigasi)**: *network-first* — ambil versi terbaru, jatuh ke cache saat offline.
 - **Aset & Google Fonts**: *cache-first* sambil memperbarui cache di belakang (stale-while-revalidate).
 - Saat aktivasi, cache versi lama dihapus.
-- **Wajib**: setiap mengubah `index.html`, naikkan `VERSION` (saat ini `"v2"`).
+- **Wajib**: setiap mengubah file apa pun di aplikasi (HTML, CSS, JS), naikkan `VERSION` agar HP pengguna mengambil versi terbaru. File baru juga harus ditambahkan ke `SHELL`.
 
 ---
 
 ## 9. Tampilan & tema
 
-- Warna didefinisikan sebagai CSS variable di `:root`. Ada dua lapis: tema awal (baris ~20–194) lalu **override "Tampilan segar ala aplikasi olahraga"** (baris ~196 ke bawah) yang menjadi tampilan aktif: aksen oranye `#FC5200`, abu gelap `#2D3142`, font Figtree.
+- Semua gaya ada di `css/style.css`. Warna didefinisikan sebagai CSS variable di `:root`. Ada dua lapis: tema dasar di bagian atas, lalu **"Tampilan segar ala aplikasi olahraga"** di bawahnya yang menimpa tema dasar dan menjadi tampilan aktif: aksen oranye `#FC5200`, abu gelap `#2D3142`, font Figtree. Sebagian aturan di tema dasar sudah tidak berpengaruh karena tertimpa; menggabungkan kedua lapis adalah pekerjaan perapian berikutnya (lihat bagian 12).
 - **Warna pembeda konten**: setiap kotak diberi kelas `kc` + satu kelas warna, yang menampilkan garis warna di sisi kiri, titik warna di judul, dan ikon berwarna sama. Artinya konsisten di semua halaman dan dijelaskan di kotak **Arti warna** pada halaman Program:
 
   | Kelas | Warna | Isi |
@@ -264,20 +294,21 @@ Inilah alasan README menyebut "memindahkan data dari versi Claude" lewat ekspor/
 
 ## 10. Cara mengubah hal yang umum
 
-| Ingin mengubah | Lokasi di `index.html` |
+| Ingin mengubah | Lokasi |
 |---|---|
-| Gerakan latihan | konstanta `W` |
-| Jumlah set / istirahat / kardio per fase | konstanta `PH` |
-| Contoh menu makan | konstanta `MENU` (`[waktu, isi, kkal, protein]`) |
-| Larangan harian | konstanta `RULES` |
-| Tips coach harian | konstanta `TIPS` |
-| Profil contoh / data awal | `DEF()` |
-| Rumus target kalori | `kcal()` |
-| Lencana | array `B` di `progHTML()` |
-| Teks hari istirahat di jadwal mingguan | `planHTML()` (variabel `rows`) |
-| Aturan validasi data | `clean()` |
+| Gerakan latihan | `W` di `js/data.js` |
+| Jumlah set / istirahat / kardio per fase | `PH` di `js/data.js` |
+| Contoh menu makan | `MENU` di `js/data.js` (`[waktu, isi, kkal, protein]`) |
+| Larangan harian | `RULES` di `js/data.js` |
+| Tips coach harian | `TIPS` di `js/data.js` |
+| Profil contoh / data awal | `DEF()` di `js/store.js` |
+| Aturan validasi data | `clean()` di `js/store.js` |
+| Rumus target kalori | `kcal()` di `js/logic.js` |
+| Lencana | array `B` di `progHTML()`, `js/views/progres.js` |
+| Teks hari istirahat di jadwal mingguan | `planHTML()` (variabel `rows`), `js/views/program.js` |
+| Warna, jarak, font | `css/style.css` |
 
-Setelah mengubah: naikkan `VERSION` di `sw.js`, lalu upload ulang.
+Setelah mengubah: jalankan `npm test`, naikkan `VERSION` di `sw.js`, catat di `CHANGELOG.md`, lalu commit dan push.
 
 **Jangan mengganti** nilai `k` gerakan yang sudah dipakai atau kunci `KEY`. Data lama merujuk ke kunci tersebut, dan `clean()` akan membuang gerakan yang id-nya tidak lagi dikenal. Jika struktur `S` diubah, naikkan `SCHEMA` dan tambahkan migrasinya di `clean()`.
 
@@ -285,15 +316,15 @@ Setelah mengubah: naikkan `VERSION` di `sw.js`, lalu upload ulang.
 
 ## 11. Menjalankan secara lokal
 
-Service worker butuh `http://`, jadi jangan buka file langsung dengan `file://` jika ingin menguji mode offline:
+Cara tercepat: klik dua kali `index.html`. Aplikasi berjalan penuh, hanya service worker (mode offline) yang tidak aktif.
+
+Untuk menguji mode offline, jalankan server lokal (butuh Node.js 18+):
 
 ```bash
-cd latian-ning-gym
-python -m http.server 8000
-# buka http://localhost:8000
+npm start            # http://localhost:8000
 ```
 
-Membuka `index.html` langsung tetap bisa untuk melihat tampilan; hanya service worker yang tidak aktif.
+Atau tanpa Node.js: `python -m http.server 8000`.
 
 ---
 
@@ -303,12 +334,32 @@ Membuka `index.html` langsung tetap bisa untuk melihat tampilan; hanya service w
 - File ekspor yang berisi banyak foto bisa berukuran beberapa MB (tiap foto ±100–200 KB).
 - Rumus kalori adalah perkiraan populasi umum; angka sebenarnya bisa berbeda ±10–20%. Pantau tren berat 2 minggu dan sesuaikan porsi.
 - Konten latihan dan gizi adalah panduan umum, bukan pengganti dokter, ahli gizi, atau pelatih bersertifikat.
+- **Perapian berikutnya**: `css/style.css` masih berisi tema dasar lama yang sebagian besar tertimpa tema baru. Menggabungkannya akan memperkecil CSS sekitar sepertiga; lakukan bersama `npm run screenshots` untuk membandingkan tampilan sebelum dan sesudah.
 
 ---
 
 ## 13. Pengujian
 
-Tidak ada framework uji di dalam proyek (agar tetap tanpa build). Perubahan versi 3 diuji di Chrome headless (Puppeteer) dengan skenario berikut, semuanya lulus:
+Uji berjalan di Chrome headless lewat `puppeteer-core` (hanya dipakai untuk uji, tidak ikut ke aplikasi).
+
+```bash
+npm install          # sekali saja
+npm test             # menjalankan semua tests/*.test.js
+npm run screenshots  # tangkapan layar 4 halaman, terang & gelap, ke tests/output/
+```
+
+- Chrome atau Edge yang terpasang dipakai otomatis; atur `CHROME_PATH` jika lokasinya berbeda.
+- Jam di halaman uji dikunci ke **8 November 2026 12.00 WIB** dan zona waktunya Asia/Jakarta, sehingga hasil uji kalender sama di komputer mana pun.
+- GitHub Actions (`.github/workflows/test.yml`) menjalankan `npm test` di setiap push dan pull request. Jika gagal, tangkapan layar diunggah sebagai artefak.
+
+| File | Isi |
+|---|---|
+| `tests/dasar.test.js` | 30 uji: profil, validasi data rusak, jadwal, kalori, ekspor/impor, dialog, alur latihan |
+| `tests/fitur.test.js` | 35 uji: kalender, grafik per gerakan, catat latihan lampau, edit sesi, rekor |
+| `tests/offline.test.js` | 7 uji: daftar cache service worker lengkap, buka dari file, berjalan tanpa internet |
+| `tests/helpers.js` | Server lokal, pencarian Chrome, jam tetap |
+
+Rincian skenario:
 
 1. Pengguna baru: ajakan isi profil dan angka kalori umum tampil.
 2. Data lama/rusak di localStorage: sesi tak valid, gerakan tak dikenal, berat, makan, dan hari pengingat tak valid dibersihkan; halaman hasil tetap terbuka.
@@ -320,8 +371,6 @@ Tidak ada framework uji di dalam proyek (agar tetap tanpa build). Perubahan vers
 8. Alur latihan: isi set → centang → Selesai → sesi tersimpan.
 9. Tidak ada error JavaScript sepanjang skenario, di mode terang maupun gelap.
 
-Fitur versi 4 diuji dengan 35 skenario tambahan, semuanya lulus:
-
 10. Kalender: warna per jenis latihan, hari terlewat, hari sebelum program tidak ditandai, hari ini, jadwal mendatang, ringkasan dan kepatuhan, navigasi bulan.
 11. Ketuk tanggal membuka detail; ketuk hari terlewat membuka editor dengan tanggal itu dan jam pengingat.
 12. Grafik per gerakan: angka terbaru, kenaikan, terbaik, garis 1RM, dan metrik durasi untuk plank.
@@ -330,33 +379,3 @@ Fitur versi 4 diuji dengan 35 skenario tambahan, semuanya lulus:
 15. Hapus sesi menjaga rekor tetap konsisten; data bertahan setelah aplikasi dibuka ulang.
 
 Uji manual singkat setelah mengubah kode: buka aplikasi, isi profil, catat satu set dan simpan, ekspor, lalu impor file itu dengan pilihan Gabungkan.
-
----
-
-## 14. Riwayat perubahan
-
-### v5 (8 November 2026)
-- Warna pembeda di setiap kotak konten (garis kiri, titik judul, ikon) menurut jenis isi, berlaku di mode terang dan gelap.
-- Kotak **Arti warna** di halaman Program.
-- `VERSION` service worker → `v5`.
-
-### v4 (8 November 2026)
-- Kalender latihan bulanan dengan tanda hari terlewat, ringkasan sesi, dan kepatuhan.
-- Grafik perkembangan per gerakan (beban terberat, perkiraan 1RM, beban bantuan pull-up, durasi plank).
-- Edit sesi (angka, tanggal, jam, durasi, berat, kardio) dan catat latihan lampau dari kalender atau riwayat.
-- Rekor pribadi dihitung ulang setiap kali data sesi berubah.
-- Halaman detail berlabel "Detail latihan" saat dibuka dari riwayat atau kalender.
-- Teks kartu foto disesuaikan: foto kini ikut ekspor.
-- `VERSION` service worker → `v4`.
-
-### v3 (8 November 2026)
-- Profil kini mencakup usia dan jenis kelamin; target kalori dihitung pribadi; ajakan melengkapi profil.
-- Jadwal mingguan mengikuti hari pengingat.
-- Ekspor menyertakan foto progres; impor bisa digabung atau mengganti; tanggal cadangan terakhir ditampilkan.
-- Validasi dan migrasi data (`clean()`, `SCHEMA = 2`) untuk semua data masuk; halaman hasil dan gambar bagikan tidak lagi bisa error karena id gerakan tak dikenal.
-- Semua `confirm()` diganti dialog sendiri yang berfungsi di WebView/iframe.
-- Meminta penyimpanan permanen ke browser.
-- Perbaikan kecil: ukuran ikon tombol "Simpan gambar", nilai air minum di luar batas dipotong ke 0–10, kode tak terpakai dibuang, ikon maskable masuk cache offline, `VERSION` service worker → `v3`.
-
-### v2
-- Versi awal yang didokumentasikan.

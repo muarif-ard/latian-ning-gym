@@ -1,0 +1,7 @@
+# Simpan semua file teks dengan akhir baris LF di repo, apa pun sistem operasinya.
+* text=auto eol=lf
+
+# File biner: jangan diubah sama sekali.
+*.png binary
+*.jpg binary
+*.ico binary

@@ -5,8 +5,9 @@ desktop.ini
 .vscode/
 .idea/
 
-# Dependensi dan hasil uji (jika ditambahkan nanti)
+# Dependensi dan hasil uji
 node_modules/
+tests/output/
 *.log
 
 # Cadangan data pribadi dari aplikasi, jangan diunggah
