@@ -1,0 +1,13 @@
+# Sistem operasi dan editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Dependensi dan hasil uji (jika ditambahkan nanti)
+node_modules/
+*.log
+
+# Cadangan data pribadi dari aplikasi, jangan diunggah
+latian-ning-gym-cadangan-*.json
